@@ -31,6 +31,8 @@ class RedisClient{
         }
     }
 
+    fun close() = pool.close()
+
 
 
 }

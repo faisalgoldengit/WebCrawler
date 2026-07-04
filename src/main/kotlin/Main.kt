@@ -19,39 +19,41 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import org.example.data.RedisClient
 import org.jsoup.Jsoup
 import java.util.concurrent.ConcurrentHashMap
 
 fun main() {
 
     val client = HttpClient(CIO)
+    val redisClient = RedisClient()
     runBlocking {
-        LocalCrawler(client)
+
+        LocalCrawler(client, redisClient)
     }
     client.close()
+    redisClient.close()
 
 }
 
 
-suspend fun LocalCrawler(client: HttpClient)= coroutineScope{
+suspend fun LocalCrawler(client: HttpClient,redisClient: RedisClient)= coroutineScope{
 
-        val urlQueue = Channel<String>(500)
+        val queueKey = "crawler:queue"
         val start = "https://quotes.toscrape.com/"
-        val visited = ConcurrentHashMap.newKeySet<String>()
-        urlQueue.send(start)
-        visited.add(start)
+        redisClient.pushUrl(queueKey,start)
         val TotalWorkers = 10
         repeat(TotalWorkers) {workerid->
             this.launch(Dispatchers.IO){
-                for(url in urlQueue){
+                val url = redisClient.popUrlBlocking(queueKey, timeout = 10)
+                if(url != null && redisClient.markVisitedIfNew(url)){
                     val parsedUrls = Parser(url,client)
                     parsedUrls.forEach {
-                        if(visited.add(it)){
-                            urlQueue.send(it)
-                            println(it)
-                        }
-
+                        redisClient.pushUrl(queueKey,it)
+                        println(it)
                     }
+
+
                 }
             }
         }
