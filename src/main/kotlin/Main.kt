@@ -43,14 +43,20 @@ suspend fun LocalCrawler(client: HttpClient,redisClient: RedisClient)= coroutine
         val start = "https://quotes.toscrape.com/"
         redisClient.pushUrl(queueKey,start)
         val TotalWorkers = 10
+        if(redisClient.markVisitedIfNew(start)){
+            redisClient.pushUrl(queueKey,start)
+        }
+
         repeat(TotalWorkers) {workerid->
             this.launch(Dispatchers.IO){
-                val url = redisClient.popUrlBlocking(queueKey, timeout = 10)
-                if(url != null && redisClient.markVisitedIfNew(url)){
+                while(true){
+                    val url = redisClient.popUrlBlocking(queueKey, timeout = 10)
+                    if(url == null){continue}
                     val parsedUrls = Parser(url,client)
                     parsedUrls.forEach {
-                        redisClient.pushUrl(queueKey,it)
-                        println(it)
+                        if(redisClient.markVisitedIfNew(it)){
+                            redisClient.pushUrl(queueKey,it)
+                            println(it)}
                     }
 
 
