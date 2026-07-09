@@ -31,6 +31,19 @@ class RedisClient{
         }
     }
 
+    suspend fun cacheRobotsTxt(domain:String,content:String,ttl:Long=86400)=withContext(Dispatchers.IO){
+        pool.resource.use { jedis ->
+            jedis.setex("robots:$domain",ttl,content)
+        }
+    }
+
+    suspend fun getCachedRobotsTxt(domain:String):String?=withContext(Dispatchers.IO){
+        pool.resource.use{jedis ->
+            jedis.get("robots:$domain")
+        }
+
+    }
+
     fun close() = pool.close()
 
 

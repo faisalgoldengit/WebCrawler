@@ -58,12 +58,9 @@ suspend fun LocalCrawler(client: HttpClient,redisClient: RedisClient)= coroutine
                             redisClient.pushUrl(queueKey,it)
                             println(it)}
                     }
-
-
                 }
             }
         }
-
 }
 
 suspend fun Parser(url:String,client: HttpClient):List<String>{
