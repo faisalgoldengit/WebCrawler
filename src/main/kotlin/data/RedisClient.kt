@@ -6,8 +6,15 @@ import redis.clients.jedis.JedisPool
 import redis.clients.jedis.JedisPoolConfig
 
 class RedisClient{
-    private val pool = JedisPool(JedisPoolConfig(),"localhost",6379)
-
+    private val pool = JedisPool(
+        JedisPoolConfig().apply {
+            maxTotal = 32       // enough headroom for N workers doing brpop + concurrent ops
+            maxIdle = 16
+            minIdle = 4
+            testOnBorrow = true
+        },
+        "localhost", 6379
+    )
 
     suspend fun pushUrl(queueKey:String,url: String)=withContext(Dispatchers.IO){
 
@@ -43,6 +50,8 @@ class RedisClient{
         }
 
     }
+
+
 
     fun close() = pool.close()
 

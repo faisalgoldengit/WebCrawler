@@ -27,9 +27,10 @@ fun main() {
 
     val client = HttpClient(CIO)
     val redisClient = RedisClient()
+    val robotService = RobotsTxtService(redisClient,client)
     runBlocking {
 
-        LocalCrawler(client, redisClient)
+        LocalCrawler(client, redisClient,robotService)
     }
     client.close()
     redisClient.close()
@@ -37,11 +38,10 @@ fun main() {
 }
 
 
-suspend fun LocalCrawler(client: HttpClient,redisClient: RedisClient)= coroutineScope{
+suspend fun LocalCrawler(client: HttpClient,redisClient: RedisClient,robotService: RobotsTxtService)= coroutineScope{
 
         val queueKey = "crawler:queue"
         val start = "https://quotes.toscrape.com/"
-        redisClient.pushUrl(queueKey,start)
         val TotalWorkers = 10
         if(redisClient.markVisitedIfNew(start)){
             redisClient.pushUrl(queueKey,start)
@@ -54,9 +54,13 @@ suspend fun LocalCrawler(client: HttpClient,redisClient: RedisClient)= coroutine
                     if(url == null){continue}
                     val parsedUrls = Parser(url,client)
                     parsedUrls.forEach {
-                        if(redisClient.markVisitedIfNew(it)){
-                            redisClient.pushUrl(queueKey,it)
-                            println(it)}
+                        if(robotService.isAllowed(it)) {
+                            if (redisClient.markVisitedIfNew(it)) {
+
+                                redisClient.pushUrl(queueKey, it)
+                                println(it)
+                            }
+                        }
                     }
                 }
             }
