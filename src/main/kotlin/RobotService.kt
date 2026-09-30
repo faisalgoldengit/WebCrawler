@@ -16,10 +16,15 @@ class RobotsTxtService(
     fun isPathAllowed(policy: RobotPolicy, path: String): Boolean {
         // Convert robots.txt pattern to regex: * = wildcard, $ = end anchor
         fun toRegex(pattern: String): Regex {
-            val escaped = Regex.escape(pattern)
-                .replace("\\*", ".*")
-                .let { if (pattern.endsWith("$")) it.removeSuffix("\\\$") + "$" else it }
-            return Regex("^$escaped")
+            val hasEndAnchor = pattern.endsWith("/$")
+            val basepattern = if(hasEndAnchor) pattern.removeSuffix("/$") else pattern
+            val escaped = basepattern
+                .split("*")
+                .joinToString(".*") {
+                    if(it.isEmpty()) "" else Regex.escape(it)
+                }
+            val suffix = if(hasEndAnchor) "$" else ""
+            return Regex("^$escaped$suffix")
         }
 
         val matches = policy.rules.filter { toRegex(it.path).containsMatchIn(path) }
@@ -41,6 +46,7 @@ class RobotsTxtService(
 
     suspend fun getCrawlDelayMs(domain: String): Long? {
         val content = redis.getCachedRobotsTxt(domain) ?: fetchAndCache(domain)
+
         return parser.parse(content, userAgent).crawlDelayMs
     }
 

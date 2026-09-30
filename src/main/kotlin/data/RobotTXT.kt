@@ -51,7 +51,7 @@ class RobotTXTparser{
 
         return RobotPolicy(
             rules = chosen?.second?:emptyList(),
-            crawlDelayMs = crawlDelay,
+            crawlDelayMs = crawlDelay?:500L,
             sitemaps=sitemaps
         )
 
